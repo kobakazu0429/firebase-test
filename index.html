@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.3.0/css/ol.css" type="text/css">
+  <style>
+    .map {
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+  <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.3.0/build/ol.js"></script>
+  <title>OpenLayers example</title>
+</head>
+<body>
+  <h2>My Map</h2>
+  <form onsubmit="return false;">
+    <ul>
+      <li>
+        <p>緯度(132...)</p>
+        <input id="form_lat" type="text">
+      </li>
+      <li>
+        <p>経度(35...)</p>
+        <input id="form_lon" type="text">
+      </li>
+      <li>
+        <p>気温</p>
+        <input id="form_temp" type="text">
+      </li>
+      <li>
+        <p onclick="add()">送信</p>
+      </li>
+    </ul>
+  </form>
+  <div id="map" class="map"></div>
+  <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script>
+  <script type="text/javascript">
+  firebase.initializeApp({
+    apiKey: '<< Your ApiKey >>',
+    projectId: '<< Your Project Id >>'
+  });
+
+  const db = firebase.firestore();
+
+  const add = () => {
+    const form_lat = document.getElementById("form_lat").value;
+    const form_lon = document.getElementById("form_lon").value;
+    const form_temp = document.getElementById("form_temp").value;
+
+    console.log(form_lat);
+    console.log(form_lon);
+    console.log(form_temp);
+
+    db.collection("gps").add({
+      created_at: new Date(),
+      pos: new firebase.firestore.GeoPoint(Number(form_lon), Number(form_lat)),
+      temperature: form_temp
+    })
+    .then(function (docRef) {
+      console.log("Document written with ID: ", docRef.id);
+    })
+    .catch(function (error) {
+      console.error("Error adding document: ", error);
+    });
+  };
+
+  const features = db.collection("gps").get().then((querySnapshot) => {
+    const features = [];
+    querySnapshot.forEach((doc) => {
+      features.push(
+        new ol.Feature({
+          type: 'geoMarker',
+          geometry: new ol.geom.Point(ol.proj.fromLonLat([doc.data().pos.longitude, doc.data().pos.latitude]))
+        })
+      )
+    });
+    return features;
+  }).then((features)=> {
+    var vectorSource = new ol.source.Vector({
+      features: features
+    });
+
+    var vectorLayer = new ol.layer.Vector({
+      source: vectorSource,
+      zIndex:10,
+      style: new ol.style.Style({
+        image: new ol.style.Circle({
+          radius: 10,
+          fill: new ol.style.Fill({ color: 'rgba(255, 0, 0, 0.4)' }),
+          stroke: new ol.style.Stroke({
+            color: 'white', width: 3
+          })
+        })
+      })
+    });
+
+    const map = new ol.Map({
+      target: 'map',
+      layers: [
+        new ol.layer.Tile({
+          source: new ol.source.OSM()
+        }),
+        vectorLayer
+      ],
+      view: new ol.View({
+        center: ol.proj.fromLonLat([37.41, 8.82]),
+        zoom: 2
+      })
+    });
+  });
+  </script>
+</body>
+</html>
